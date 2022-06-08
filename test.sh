@@ -14,7 +14,21 @@ else
 fi
 
 THEME_NAME=Mojave
-COLOR_VARIANTS=('-light' '-dark')
+COLOR_VARIANTS=('-Light' '-Dark')
+
+if [[ "$(command -v gnome-shell)" ]]; then
+  gnome-shell --version
+  SHELL_VERSION="$(gnome-shell --version | cut -d ' ' -f 3 | cut -d . -f -1)"
+  if [[ "${SHELL_VERSION:-}" -ge "42" ]]; then
+    GS_VERSION="42-0"
+  elif [[ "${SHELL_VERSION:-}" -ge "40" ]]; then
+    GS_VERSION="40-0"
+  else
+    GS_VERSION="3-28"
+  fi
+  else
+    echo "'gnome-shell' not found, using styles for last gnome-shell version available."
+fi
 
 usage() {
   printf "%s\n" "Usage: $0 [OPTIONS...]"
@@ -32,8 +46,8 @@ install() {
   local name="${2}"
   local color="${3}"
 
-  [[ "${color}" == '-light' ]] && local ELSE_LIGHT="${color}"
-  [[ "${color}" == '-dark' ]] && local ELSE_DARK="${color}"
+  [[ "${color}" == '-Light' ]] && local ELSE_LIGHT="${color}"
+  [[ "${color}" == '-Dark' ]] && local ELSE_DARK="${color}"
 
   local THEME_DIR="${1}/${2}${3}"
 
@@ -58,12 +72,12 @@ install() {
   echo "ButtonLayout=close,minimize,maximize:menu" >>                                        "${THEME_DIR}/index.theme"
 
   mkdir -p                                                                                   "${THEME_DIR}/gnome-shell"
-  cp -r "${SRC_DIR}/main/gnome-shell/gnome-shell${color}.css"                                "${THEME_DIR}/gnome-shell/gnome-shell.css"
+  cp -r "${SRC_DIR}/main/gnome-shell/shell-${GS_VERSION}/gnome-shell${color}.css"            "${THEME_DIR}/gnome-shell/gnome-shell.css"
   cp -r "${SRC_DIR}/assets/gnome-shell/common-assets"                                        "${THEME_DIR}/gnome-shell/assets"
   cp -r "${SRC_DIR}/assets/gnome-shell/assets${color}/"*'.svg'                               "${THEME_DIR}/gnome-shell/assets"
   cp -r "${SRC_DIR}/assets/gnome-shell/assets${color}/background.png"                        "${THEME_DIR}/gnome-shell/assets"
   cp -r "${SRC_DIR}/assets/gnome-shell/activities${color}/activities.svg"                    "${THEME_DIR}/gnome-shell/assets/activities.svg"
-
+  cp -r "${SRC_DIR}/assets/gnome-shell/activities-Dark/activities${icon}.svg"                "${THEME_DIR}/gnome-shell/assets/activities-white.svg"
   cd "${THEME_DIR}/gnome-shell"
   mv -f assets/no-events.svg no-events.svg
   mv -f assets/process-working.svg process-working.svg
@@ -76,21 +90,18 @@ install() {
   cp -r "${SRC_DIR}/assets/gtk-2.0/assets${color}"                                           "${THEME_DIR}/gtk-2.0/assets"
 
   mkdir -p                                                                                   "${THEME_DIR}/gtk-3.0"
-  cp -r "${SRC_DIR}/assets/gtk-3.0/common-assets/assets"                                     "${THEME_DIR}/gtk-3.0"
-  cp -r "${SRC_DIR}/assets/gtk-3.0/windows-assets/titlebutton"                               "${THEME_DIR}/gtk-3.0/windows-assets"
-  cp -r "${SRC_DIR}/assets/gtk-3.0/thumbnails/thumbnail${color}.png"                         "${THEME_DIR}/gtk-3.0/thumbnail.png"
-  cp -r "${SRC_DIR}/main/gtk-3.0/gtk-dark.css"                                               "${THEME_DIR}/gtk-3.0/gtk-dark.css"
+  cp -r "${SRC_DIR}/assets/gtk/common-assets/assets"                                         "${THEME_DIR}/gtk-3.0"
+  cp -r "${SRC_DIR}/assets/gtk/windows-assets/titlebutton"                                   "${THEME_DIR}/gtk-3.0/windows-assets"
+  cp -r "${SRC_DIR}/assets/gtk/thumbnails/thumbnail${color}.png"                             "${THEME_DIR}/gtk-3.0/thumbnail.png"
+  cp -r "${SRC_DIR}/main/gtk-3.0/gtk${color}.css"                                            "${THEME_DIR}/gtk-3.0/gtk.css"
+  cp -r "${SRC_DIR}/main/gtk-3.0/gtk-Dark.css"                                               "${THEME_DIR}/gtk-3.0/gtk-dark.css"
 
-  if [[ "${color}" == '-light' ]]; then
-    cp -r "${SRC_DIR}/main/gtk-3.0/gtk-light.css"                                            "${THEME_DIR}/gtk-3.0/gtk.css"
-  else
-    cp -r "${SRC_DIR}/main/gtk-3.0/gtk-dark.css"                                             "${THEME_DIR}/gtk-3.0/gtk.css"
-  fi
-
-  glib-compile-resources --sourcedir="${THEME_DIR}/gtk-3.0" --target="${THEME_DIR}/gtk-3.0/gtk.gresource" "${SRC_DIR}/main/gtk-3.0/gtk.gresource.xml"
-  rm -rf "${THEME_DIR}/gtk-3.0/{assets,windows-assets,gtk.css,gtk-dark.css}"
-  echo '@import url("resource:///org/gnome/Mojave-theme/gtk.css");' >>                       "${THEME_DIR}/gtk-3.0/gtk.css"
-  echo '@import url("resource:///org/gnome/theme/gtk-dark.css");' >>                         "${THEME_DIR}/gtk-3.0/gtk-dark.css"
+  mkdir -p                                                                                   "${THEME_DIR}/gtk-4.0"
+  cp -r "${SRC_DIR}/assets/gtk/common-assets/assets"                                         "${THEME_DIR}/gtk-4.0"
+  cp -r "${SRC_DIR}/assets/gtk/windows-assets/titlebutton"                                   "${THEME_DIR}/gtk-4.0/windows-assets"
+  cp -r "${SRC_DIR}/assets/gtk/thumbnails/thumbnail${color}.png"                             "${THEME_DIR}/gtk-4.0/thumbnail.png"
+  cp -r "${SRC_DIR}/main/gtk-4.0/gtk${color}.css"                                            "${THEME_DIR}/gtk-4.0/gtk.css"
+  cp -r "${SRC_DIR}/main/gtk-4.0/gtk-Dark.css"                                               "${THEME_DIR}/gtk-4.0/gtk-dark.css"
 
   mkdir -p                                                                                   "${THEME_DIR}/metacity-1"
   cp -r "${SRC_DIR}/main/metacity-1/metacity-theme${color}.xml"                              "${THEME_DIR}/metacity-1/metacity-theme-1.xml"
@@ -249,18 +260,24 @@ done
 
 # Parse scss to css
 for color in "${colors[@]-${COLOR_VARIANTS[@]}}"; do
-    sassc $SASSC_OPT src/main/gtk-3.0/gtk${color}.{scss,css}
-    echo "==> Generating the gtk${color}.css..."
-    sassc $SASSC_OPT src/main/cinnamon/cinnamon${color}.{scss,css}
-    echo "==> Generating the cinnamon${color}.css..."
-    sassc $SASSC_OPT src/main/gnome-shell/gnome-shell${color}.{scss,css}
-    echo "==> Generating the gnome-shell${color}.css..."
+  sassc $SASSC_OPT src/main/gtk-3.0/gtk${color}.{scss,css}
+  echo "==> Generating the 3.0 gtk${color}.css..."
+  sassc $SASSC_OPT src/main/gtk-4.0/gtk${color}.{scss,css}
+  echo "==> Generating the 4.0 gtk${color}.css..."
+  sassc $SASSC_OPT src/main/cinnamon/cinnamon${color}.{scss,css}
+  echo "==> Generating the cinnamon${color}.css..."
+  sassc $SASSC_OPT src/main/gnome-shell/shell-3-28/gnome-shell${color}.{scss,css}
+  echo "==> Generating the 3.28 gnome-shell${color}.css..."
+  sassc $SASSC_OPT src/main/gnome-shell/shell-40-0/gnome-shell${color}.{scss,css}
+  echo "==> Generating the 40.0 gnome-shell${color}.css..."
+  sassc $SASSC_OPT src/main/gnome-shell/shell-42-0/gnome-shell${color}.{scss,css}
+  echo "==> Generating the 42.0 gnome-shell${color}.css..."
 done
 
 sassc $SASSC_OPT src/other/dash-to-dock/stylesheet.{scss,css}
 echo "==> Generating dash-to-dock stylesheet.css..."
-sassc $SASSC_OPT src/other/dash-to-dock/stylesheet-dark.{scss,css}
-echo "==> Generating dash-to-dock stylesheet-dark.css..."
+sassc $SASSC_OPT src/other/dash-to-dock/stylesheet-Dark.{scss,css}
+echo "==> Generating dash-to-dock stylesheet-Dark.css..."
 
 install_theme() {
   for color in "${colors[@]-${COLOR_VARIANTS[@]}}"; do
